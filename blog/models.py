@@ -1,6 +1,51 @@
+from django.db.models import Count
 from django.db import models
 from django.urls import reverse
 from django.contrib.auth.models import User
+
+
+class PostQuerySet(models.QuerySet):
+    def year(self, year):
+        posts_at_year = self.filter(
+            published_at__year=year
+        ).order_by('published_at')
+
+        return posts_at_year
+
+    def fresh(self):
+        fresh_posts = self.order_by('-published_at')
+
+        return fresh_posts
+
+    def popular(self):
+        popular_posts = self.annotate(
+            count_likes=Count('likes')
+        ).order_by('-count_likes')
+
+        return popular_posts
+
+    def fetch_with_comments_count(self):
+        posts_with_comments = Post.objects.filter(
+            id__in=[post.id for post in self]
+        ).annotate(comments_count=Count('comments'))
+
+        count_for_id = dict(
+            posts_with_comments.values_list('id', 'comments_count')
+        )
+
+        for post in self:
+            post.comments_count = count_for_id[post.id]
+
+        return self
+
+
+class TagQuerySet(models.QuerySet):
+    def popular(self):
+        popular_tags = self.annotate(
+            count_posts=Count('posts')
+        ).order_by('-count_posts')
+
+        return popular_tags
 
 
 class Post(models.Model):
@@ -9,7 +54,6 @@ class Post(models.Model):
     slug = models.SlugField('Название в виде url', max_length=200)
     image = models.ImageField('Картинка')
     published_at = models.DateTimeField('Дата и время публикации')
-
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -39,6 +83,8 @@ class Post(models.Model):
         verbose_name = 'пост'
         verbose_name_plural = 'посты'
 
+    objects = PostQuerySet.as_manager()
+
 
 class Tag(models.Model):
     title = models.CharField('Тег', max_length=20, unique=True)
@@ -57,17 +103,21 @@ class Tag(models.Model):
         verbose_name = 'тег'
         verbose_name_plural = 'теги'
 
+    objects = TagQuerySet.as_manager()
+
 
 class Comment(models.Model):
     post = models.ForeignKey(
         'Post',
+        related_name='comments',
         on_delete=models.CASCADE,
-        verbose_name='Пост, к которому написан')
+        verbose_name='Пост, к которому написан'
+    )
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        verbose_name='Автор')
-
+        verbose_name='Автор'
+    )
     text = models.TextField('Текст комментария')
     published_at = models.DateTimeField('Дата и время публикации')
 
