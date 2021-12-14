@@ -14,16 +14,19 @@ class Post(models.Model):
         User,
         on_delete=models.CASCADE,
         verbose_name='Автор',
-        limit_choices_to={'is_staff': True})
+        limit_choices_to={'is_staff': True}
+    )
     likes = models.ManyToManyField(
         User,
         related_name='liked_posts',
         verbose_name='Кто лайкнул',
-        blank=True)
+        blank=True
+    )
     tags = models.ManyToManyField(
         'Tag',
         related_name='posts',
-        verbose_name='Теги')
+        verbose_name='Теги'
+    )
 
     def __str__(self):
         return self.title
