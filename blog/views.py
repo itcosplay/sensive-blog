@@ -1,5 +1,8 @@
 from django.db.models import Count
+from django.http import HttpResponseNotFound
+from django.http import Http404
 from django.shortcuts import render
+from django.shortcuts import get_object_or_404
 
 from blog.models import Post, Tag
 
@@ -51,7 +54,12 @@ def index(request):
 
 
 def post_detail(request, slug):
-    post = Post.objects.select_related('author').get(slug=slug)
+    try:
+        post = get_object_or_404(Post, slug=slug)
+
+    except Http404:
+        return HttpResponseNotFound('<h1>Кажется, такого поста не существует...</h1>')
+
     comments = post.comments.prefetch_related('author')
 
     serialized_comments = []
